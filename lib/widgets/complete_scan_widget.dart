@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import 'package:more_security/providers/app_state_provider.dart';
 import 'package:more_security/services/complete_scan_service.dart';
+import 'package:more_security/utils/permission_handler.dart';
 import 'package:percent_indicator/circular_percent_indicator.dart';
 import 'package:provider/provider.dart';
 
@@ -40,6 +41,20 @@ class _CompleteScanWidgetState extends State<CompleteScanWidget>
   Future<void> _startScan() async {
     if (_isScanning) return;
 
+    final permissionsGranted =
+        await AppPermissionHandler.checkAndRequestBasicPermissions(context);
+    if (!permissionsGranted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Se requieren permisos para realizar un escaneo completo',
+          ),
+          duration: Duration(seconds: 4),
+        ),
+      );
+      return;
+    }
+
     setState(() {
       _isScanning = true;
       _showResults = false;
@@ -47,7 +62,6 @@ class _CompleteScanWidgetState extends State<CompleteScanWidget>
     });
 
     try {
-      // Escuchar el progreso del escaneo
       _scanService.progressStream.listen((progress) {
         setState(() {
           _currentProgress = progress;
@@ -58,20 +72,17 @@ class _CompleteScanWidgetState extends State<CompleteScanWidget>
         }
       });
 
-      // Iniciar el escaneo
       final result = await _scanService.startCompleteScan();
 
       setState(() {
         _result = result;
         _isScanning = false;
 
-        // Actualizar el proveedor de estado con los nuevos resultados
         final provider = Provider.of<AppStateProvider>(context, listen: false);
         provider.updateSecurityScore(result.overallSecurityScore);
         provider.updateLastScanResults('complete', result.statistics);
       });
 
-      // Mostrar resultados después de la animación
       Future.delayed(const Duration(milliseconds: 1800), () {
         if (mounted) {
           setState(() {
@@ -110,11 +121,11 @@ class _CompleteScanWidgetState extends State<CompleteScanWidget>
   }
 
   Color _getScoreColor(int score) {
-    if (score >= 80) return const Color(0xFF06D6A0); // Verde
-    if (score >= 60) return const Color(0xFF90BE6D); // Verde claro
-    if (score >= 40) return const Color(0xFFFFB703); // Amarillo
-    if (score >= 20) return const Color(0xFFF8961E); // Naranja
-    return const Color(0xFFE63946); // Rojo
+    if (score >= 80) return const Color(0xFF06D6A0);
+    if (score >= 60) return const Color(0xFF90BE6D);
+    if (score >= 40) return const Color(0xFFFFB703);
+    if (score >= 20) return const Color(0xFFF8961E);
+    return const Color(0xFFE63946);
   }
 
   @override
@@ -122,7 +133,6 @@ class _CompleteScanWidgetState extends State<CompleteScanWidget>
     return Column(
       children: [
         if (_isScanning || (_result != null && !_showResults)) ...[
-          // Indicador de progreso y animación
           CircularPercentIndicator(
             radius: 70.0,
             lineWidth: 12.0,
@@ -185,76 +195,92 @@ class _CompleteScanWidgetState extends State<CompleteScanWidget>
         ],
 
         if (!_isScanning && _result == null) ...[
-          // Estado inicial - Botón para iniciar escaneo
-          Lottie.asset(
-            'assets/animations/security_check.json',
-            width: 200,
-            height: 200,
-          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.security, size: 120, color: Colors.purple),
+              const SizedBox(width: 20),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Escaneo Completo',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
 
-          const SizedBox(height: 16),
+                    const SizedBox(height: 8),
 
-          const Text(
-            'Escaneo Completo',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-          ),
+                    const Text(
+                      'Analice su dispositivo en busca de amenazas y vulnerabilidades',
+                      style: TextStyle(fontSize: 14),
+                    ),
 
-          const SizedBox(height: 8),
+                    const SizedBox(height: 12),
 
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 32),
-            child: Text(
-              'Analice su dispositivo en busca de aplicaciones maliciosas, vulnerabilidades y archivos sospechosos.',
-              textAlign: TextAlign.center,
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          ElevatedButton.icon(
-            onPressed: _startScan,
-            icon: const Icon(Icons.security),
-            label: const Text('Iniciar Escaneo Completo'),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-            ),
+                    ElevatedButton.icon(
+                      onPressed: _startScan,
+                      icon: const Icon(Icons.search),
+                      label: const Text('Iniciar Escaneo'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
 
         if (!_isScanning && _result != null && _showResults) ...[
-          // Resultados del escaneo
           Card(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  CircularPercentIndicator(
-                    radius: 60.0,
-                    lineWidth: 10.0,
-                    percent: _result!.overallSecurityScore / 100,
-                    center: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          '${_result!.overallSecurityScore}',
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: _getScoreColor(
-                              _result!.overallSecurityScore,
+                  Row(
+                    children: [
+                      Image.asset(
+                        _result!.overallSecurityScore >= 80
+                            ? 'assets/icons/safe.png'
+                            : _result!.overallSecurityScore >= 60
+                            ? 'assets/icons/shield_check.png'
+                            : 'assets/icons/warning.png',
+                        width: 40,
+                        height: 40,
+                        color: _getScoreColor(_result!.overallSecurityScore),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Puntuación de seguridad',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: _getScoreColor(
+                                  _result!.overallSecurityScore,
+                                ),
+                              ),
                             ),
-                          ),
+                            Text(
+                              '${_result!.overallSecurityScore} puntos',
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: _getScoreColor(
+                                  _result!.overallSecurityScore,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                        const Text('puntos', style: TextStyle(fontSize: 10)),
-                      ],
-                    ),
-                    progressColor: _getScoreColor(
-                      _result!.overallSecurityScore,
-                    ),
-                    backgroundColor: Colors.grey[300]!,
-                    animation: true,
-                    animationDuration: 1500,
+                      ),
+                    ],
                   ),
 
                   const SizedBox(height: 16),
@@ -306,7 +332,7 @@ class _CompleteScanWidgetState extends State<CompleteScanWidget>
                   const SizedBox(height: 8),
 
                   _buildStatRow(
-                    Icons.description,
+                    Icons.bug_report,
                     'Archivos maliciosos',
                     '${_result!.statistics['maliciousFiles']}/${_result!.statistics['filesScanned']}',
                     _result!.statistics['maliciousFiles'] > 0
@@ -357,7 +383,7 @@ class _CompleteScanWidgetState extends State<CompleteScanWidget>
   Widget _buildStatRow(IconData icon, String title, String value, Color color) {
     return Row(
       children: [
-        Icon(icon, color: color, size: 22),
+        Icon(icon, size: 22, color: color),
         const SizedBox(width: 12),
         Expanded(child: Text(title)),
         Text(

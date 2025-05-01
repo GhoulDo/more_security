@@ -46,70 +46,111 @@ class _AppScannerScreenState extends State<AppScannerScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Escáner de Aplicaciones'),
+        title: Row(
+          children: [
+            Image.asset(
+              'assets/icons/app_store.png',
+              width: 24,
+              height: 24,
+              color: Colors.white,
+            ),
+            const SizedBox(width: 8),
+            const Text('Escáner de Aplicaciones'),
+          ],
+        ),
         actions: [
           IconButton(icon: const Icon(Icons.refresh), onPressed: _loadApps),
         ],
       ),
       body:
           _isLoading
-              ? const Center(
+              ? Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: 16),
-                    Text('Escaneando aplicaciones...'),
+                    Image.asset(
+                      'assets/images/app_analysis.png',
+                      width: 120,
+                      height: 120,
+                    ),
+                    const SizedBox(height: 16),
+                    const CircularProgressIndicator(),
+                    const SizedBox(height: 16),
+                    const Text('Escaneando aplicaciones...'),
                   ],
                 ),
               )
               : Column(
                 children: [
-                  // Estadísticas resumen
+                  // Estadísticas resumen con imagen
                   Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: Card(
                       child: Padding(
                         padding: const EdgeInsets.all(16.0),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        child: Column(
                           children: [
-                            _buildStatColumn(
-                              context,
-                              'Total',
-                              _appsList.length.toString(),
-                              Colors.blue,
+                            Row(
+                              children: [
+                                Image.asset(
+                                  'assets/images/app_analysis.png',
+                                  width: 60,
+                                  height: 60,
+                                ),
+                                const SizedBox(width: 16),
+                                const Expanded(
+                                  child: Text(
+                                    'Análisis de aplicaciones',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                            _buildStatColumn(
-                              context,
-                              'Alto Riesgo',
-                              _appsList
-                                  .where((app) => app.riskScore >= 7.0)
-                                  .length
-                                  .toString(),
-                              Colors.red,
-                            ),
-                            _buildStatColumn(
-                              context,
-                              'Riesgo Medio',
-                              _appsList
-                                  .where(
-                                    (app) =>
-                                        app.riskScore >= 3.0 &&
-                                        app.riskScore < 7.0,
-                                  )
-                                  .length
-                                  .toString(),
-                              Colors.amber,
-                            ),
-                            _buildStatColumn(
-                              context,
-                              'Seguras',
-                              _appsList
-                                  .where((app) => app.riskScore < 3.0)
-                                  .length
-                                  .toString(),
-                              Colors.green,
+                            const SizedBox(height: 16),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceAround,
+                              children: [
+                                _buildStatColumn(
+                                  context,
+                                  'Total',
+                                  _appsList.length.toString(),
+                                  Colors.blue,
+                                ),
+                                _buildStatColumn(
+                                  context,
+                                  'Alto Riesgo',
+                                  _appsList
+                                      .where((app) => app.riskScore >= 7.0)
+                                      .length
+                                      .toString(),
+                                  Colors.red,
+                                ),
+                                _buildStatColumn(
+                                  context,
+                                  'Riesgo Medio',
+                                  _appsList
+                                      .where(
+                                        (app) =>
+                                            app.riskScore >= 3.0 &&
+                                            app.riskScore < 7.0,
+                                      )
+                                      .length
+                                      .toString(),
+                                  Colors.amber,
+                                ),
+                                _buildStatColumn(
+                                  context,
+                                  'Seguras',
+                                  _appsList
+                                      .where((app) => app.riskScore < 3.0)
+                                      .length
+                                      .toString(),
+                                  Colors.green,
+                                ),
+                              ],
                             ),
                           ],
                         ),
@@ -195,7 +236,16 @@ class AppItem extends StatelessWidget {
             color: Color(app.riskColor).withOpacity(0.2),
             borderRadius: BorderRadius.circular(10),
           ),
-          child: Icon(Icons.android, color: Color(app.riskColor), size: 30),
+          child: Image.asset(
+            app.riskLevel == 'Alto'
+                ? 'assets/icons/warning.png'
+                : app.riskLevel == 'Medio'
+                    ? 'assets/icons/shield_check.png'
+                    : 'assets/icons/safe.png',
+            color: Color(app.riskColor),
+            width: 30,
+            height: 30,
+          ),
         ),
         title: Text(
           app.appName,

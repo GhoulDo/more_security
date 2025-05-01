@@ -1,8 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:lottie/lottie.dart';
 import 'package:more_security/screens/home_screen.dart';
+import 'package:more_security/themes/app_theme.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -81,67 +81,88 @@ class _SplashScreenState extends State<SplashScreen>
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.primary,
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Logo o animación
-            SizedBox(
-              width: size.width * 0.5,
-              height: size.width * 0.5,
-              child: Lottie.asset(
-                'assets/animations/security_check.json',
-                controller: _controller,
-                onLoaded: (composition) {
-                  _controller.duration = composition.duration;
-                  _controller.forward();
-                },
+      backgroundColor: AppTheme.primaryColor,
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              AppTheme.primaryColor,
+              AppTheme.primaryColor.withOpacity(0.8),
+              AppTheme.accentColor.withOpacity(0.6),
+            ],
+          ),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _buildLogoImage(size),
+              const SizedBox(height: 40),
+              const Text(
+                'More Security',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  fontFamily: 'Poppins',
+                ),
               ),
-            ),
-            const SizedBox(height: 40),
-            const Text(
-              'More Security',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-                fontFamily: 'Poppins',
+              const SizedBox(height: 8),
+              const Text(
+                'Protección avanzada para su dispositivo',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.white70,
+                  fontFamily: 'Poppins',
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Protección avanzada para su dispositivo',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.white70,
-                fontFamily: 'Poppins',
+              const SizedBox(height: 60),
+              SizedBox(
+                width: size.width * 0.7,
+                child: LinearProgressIndicator(
+                  value: _stepIndex / (_loadingSteps.length - 1),
+                  backgroundColor: Colors.white24,
+                  valueColor: const AlwaysStoppedAnimation<Color>(
+                    AppTheme.accentColor,
+                  ),
+                  borderRadius: BorderRadius.circular(8),
+                  minHeight: 5,
+                ),
               ),
-            ),
-            const SizedBox(height: 60),
-            // Indicador de carga
-            SizedBox(
-              width: size.width * 0.7,
-              child: LinearProgressIndicator(
-                value: _stepIndex / (_loadingSteps.length - 1),
-                backgroundColor: Colors.white24,
-                valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-                borderRadius: BorderRadius.circular(8),
-                minHeight: 5,
+              const SizedBox(height: 16),
+              Text(
+                _currentStep,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Colors.white70,
+                  fontFamily: 'Poppins',
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              _currentStep,
-              style: const TextStyle(
-                fontSize: 14,
-                color: Colors.white70,
-                fontFamily: 'Poppins',
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
+  }
+
+  Widget _buildLogoImage(Size size) {
+    try {
+      return Hero(
+        tag: 'app_logo',
+        child: Container(
+          width: size.width * 0.4,
+          height: size.width * 0.4,
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.2),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(Icons.security, size: 80, color: Colors.white),
+        ),
+      );
+    } catch (e) {
+      return const Icon(Icons.security, size: 80, color: Colors.white);
+    }
   }
 }

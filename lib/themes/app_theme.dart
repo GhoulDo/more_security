@@ -3,12 +3,22 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AppTheme {
-  // Colores principales - constantes para evitar recálculos
-  static const Color primaryColor = Color(0xFF2E3B55);
-  static const Color accentColor = Color(0xFF00A6FB);
-  static const Color dangerColor = Color(0xFFE63946);
-  static const Color warningColor = Color(0xFFFFB703);
-  static const Color successColor = Color(0xFF06D6A0);
+  // Nueva paleta de colores con morado, rosado, negro y blanco
+  static const Color primaryColor = Color(0xFF7B2CBF); // Morado
+  static const Color accentColor = Color(0xFFFF5C8D); // Rosado
+  static const Color blackColor = Color(0xFF1A1A1A); // Negro
+  static const Color whiteColor = Color(0xFFF8F8F8); // Blanco
+
+  // Colores secundarios
+  static const Color dangerColor = Color(
+    0xFFE63946,
+  ); // Rojo (mantener para alertas)
+  static const Color warningColor = Color(
+    0xFFFFB703,
+  ); // Amarillo (mantener para advertencias)
+  static const Color successColor = Color(
+    0xFF06D6A0,
+  ); // Verde (mantener para éxito)
 
   // Caché del tema actual
   static ThemeMode? _cachedThemeMode;
@@ -32,13 +42,16 @@ class AppTheme {
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(
         seedColor: primaryColor,
+        primary: primaryColor,
+        secondary: accentColor,
         brightness: Brightness.light,
+        background: whiteColor,
       ),
-      scaffoldBackgroundColor: Colors.grey[100],
+      scaffoldBackgroundColor: whiteColor,
       appBarTheme: const AppBarTheme(
         elevation: 0,
         backgroundColor: primaryColor,
-        foregroundColor: Colors.white,
+        foregroundColor: whiteColor,
         centerTitle: true,
         systemOverlayStyle: SystemUiOverlayStyle(
           statusBarColor: Colors.transparent,
@@ -47,7 +60,7 @@ class AppTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          foregroundColor: Colors.white,
+          foregroundColor: whiteColor,
           backgroundColor: primaryColor,
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
           shape: RoundedRectangleBorder(
@@ -57,6 +70,7 @@ class AppTheme {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
+          foregroundColor: primaryColor,
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
@@ -69,19 +83,20 @@ class AppTheme {
         margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
       ),
       textTheme: const TextTheme(
-        // Optimizar el uso del TextTheme utilizando estilos pre-computados
-        titleLarge: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
-        titleMedium: TextStyle(fontWeight: FontWeight.w500, fontSize: 16),
-        bodyLarge: TextStyle(height: 1.5),
-        bodyMedium: TextStyle(height: 1.3),
+        titleLarge: TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 20,
+          fontFamily: 'Poppins',
+        ),
+        titleMedium: TextStyle(
+          fontWeight: FontWeight.w500,
+          fontSize: 16,
+          fontFamily: 'Poppins',
+        ),
+        bodyLarge: TextStyle(height: 1.5, fontFamily: 'Poppins'),
+        bodyMedium: TextStyle(height: 1.3, fontFamily: 'Poppins'),
       ),
-      // Optimización de animaciones
-      pageTransitionsTheme: const PageTransitionsTheme(
-        builders: {
-          TargetPlatform.android: ZoomPageTransitionsBuilder(),
-          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
-        },
-      ),
+      fontFamily: 'Poppins',
     );
   }
 
@@ -90,14 +105,17 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(
-        seedColor: accentColor,
+        seedColor: primaryColor,
+        primary: primaryColor,
+        secondary: accentColor,
         brightness: Brightness.dark,
+        background: blackColor,
       ),
-      scaffoldBackgroundColor: const Color(0xFF121212),
+      scaffoldBackgroundColor: blackColor,
       appBarTheme: const AppBarTheme(
         elevation: 0,
-        backgroundColor: Color(0xFF1E1E1E),
-        foregroundColor: Colors.white,
+        backgroundColor: blackColor,
+        foregroundColor: whiteColor,
         centerTitle: true,
         systemOverlayStyle: SystemUiOverlayStyle(
           statusBarColor: Colors.transparent,
@@ -106,8 +124,8 @@ class AppTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          foregroundColor: Colors.white,
-          backgroundColor: accentColor,
+          foregroundColor: whiteColor,
+          backgroundColor: primaryColor,
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
@@ -116,6 +134,7 @@ class AppTheme {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
+          foregroundColor: accentColor,
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
@@ -124,22 +143,35 @@ class AppTheme {
       ),
       cardTheme: CardTheme(
         elevation: 4,
+        color: const Color(0xFF252525),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
         margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
       ),
       textTheme: const TextTheme(
-        titleLarge: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
-        titleMedium: TextStyle(fontWeight: FontWeight.w500, fontSize: 16),
-        bodyLarge: TextStyle(height: 1.5),
-        bodyMedium: TextStyle(height: 1.3),
+        titleLarge: TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 20,
+          fontFamily: 'Poppins',
+          color: whiteColor,
+        ),
+        titleMedium: TextStyle(
+          fontWeight: FontWeight.w500,
+          fontSize: 16,
+          fontFamily: 'Poppins',
+          color: whiteColor,
+        ),
+        bodyLarge: TextStyle(
+          height: 1.5,
+          fontFamily: 'Poppins',
+          color: Color(0xFFE0E0E0),
+        ),
+        bodyMedium: TextStyle(
+          height: 1.3,
+          fontFamily: 'Poppins',
+          color: Color(0xFFE0E0E0),
+        ),
       ),
-      // Optimización de animaciones
-      pageTransitionsTheme: const PageTransitionsTheme(
-        builders: {
-          TargetPlatform.android: ZoomPageTransitionsBuilder(),
-          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
-        },
-      ),
+      fontFamily: 'Poppins',
     );
   }
 

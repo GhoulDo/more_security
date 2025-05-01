@@ -9,9 +9,12 @@ class AppPermissionHandler {
   static Future<bool> checkAndRequestBasicPermissions(
     BuildContext context,
   ) async {
-    // Permisos básicos necesarios para la aplicación
+    // Lista completa de permisos necesarios para la aplicación
     final permissionsToCheck = [
       Permission.storage, // Para acceder a archivos
+      Permission.manageExternalStorage, // Necesario en Android 11+
+      Permission.photos, // Acceso a galería
+      Permission.requestInstallPackages, // Para verificar instalaciones
     ];
 
     try {
@@ -47,43 +50,52 @@ class AppPermissionHandler {
           return false;
         }
 
-        // Solicitar los permisos necesarios
-        Map<Permission, PermissionStatus> results = {};
-        for (var permission in permissionsToRequest) {
-          results[permission] = await permission.request();
-        }
-
-        // Verificar si todos fueron concedidos
+        // Solicitar los permisos uno por uno para mejor control
         bool allGranted = true;
         bool hasPermanentlyDenied = false;
 
-        for (var entry in results.entries) {
-          if (entry.value != PermissionStatus.granted) {
+        for (var permission in permissionsToRequest) {
+          final status = await permission.request();
+
+          if (status != PermissionStatus.granted) {
             allGranted = false;
-            if (entry.value == PermissionStatus.permanentlyDenied) {
+
+            if (status == PermissionStatus.permanentlyDenied) {
               hasPermanentlyDenied = true;
+              // Ir a configuración inmediatamente por cada permiso denegado permanentemente
+              if (await _showPermissionDeniedDialog(context, permission)) {
+                await openAppSettings();
+              }
+              return false; // Interrumpir el proceso si un permiso es permanentemente denegado
+            } else if (status == PermissionStatus.denied) {
+              // Para permisos denegados pero no permanentemente, mostrar información
+              _showPermissionRequiredSnackbar(context, permission);
             }
           }
         }
 
-        if (!allGranted) {
-          // Si algún permiso fue denegado permanentemente, mostrar diálogo para ir a configuración
-          if (hasPermanentlyDenied) {
-            await _showPermanentlyDeniedDialog(context);
-          } else {
+        // Si algún permiso no se concedió, pero no es permanente, mostrar mensaje general
+        if (!allGranted && !hasPermanentlyDenied) {
+          if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
+              SnackBar(
+                content: const Text(
                   'Se requieren permisos para el funcionamiento completo',
                 ),
-                duration: Duration(seconds: 3),
+                duration: const Duration(seconds: 4),
+                action: SnackBarAction(
+                  label: 'Configuración',
+                  onPressed: () async {
+                    await openAppSettings();
+                  },
+                ),
               ),
             );
           }
           return false;
         }
 
-        return true;
+        return allGranted;
       }
 
       // Todos los permisos ya estaban concedidos
@@ -94,39 +106,36 @@ class AppPermissionHandler {
     }
   }
 
-  // Método para verificar permisos específicos según la tarea
-  static Future<bool> checkTaskSpecificPermission(
-    Permission permission,
+  // Mostrar información sobre el permiso específico requerido
+  static void _showPermissionRequiredSnackbar(
     BuildContext context,
-    String explanation,
-  ) async {
-    try {
-      final status = await permission.status;
+    Permission permission,
+  ) {
+    String permissionName = _getPermissionFriendlyName(permission);
 
-      if (status != PermissionStatus.granted) {
-        // Mostrar explicación específica
-        final shouldProceed =
-            await _showCustomPermissionDialog(context, explanation) ?? false;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('El permiso de $permissionName es necesario'),
+        duration: const Duration(seconds: 3),
+        action: SnackBarAction(
+          label: 'Conceder',
+          onPressed: () async {
+            await permission.request();
+          },
+        ),
+      ),
+    );
+  }
 
-        if (!shouldProceed) {
-          return false;
-        }
-
-        final result = await permission.request();
-
-        if (result != PermissionStatus.granted) {
-          if (result == PermissionStatus.permanentlyDenied) {
-            await _showPermanentlyDeniedDialog(context);
-          }
-          return false;
-        }
-      }
-
-      return true;
-    } catch (e) {
-      debugPrint('Error al verificar permiso específico: $e');
-      return false;
-    }
+  // Obtener nombre amigable para el permiso
+  static String _getPermissionFriendlyName(Permission permission) {
+    if (permission == Permission.storage) return 'almacenamiento';
+    if (permission == Permission.manageExternalStorage)
+      return 'administrar archivos';
+    if (permission == Permission.photos) return 'fotos';
+    if (permission == Permission.requestInstallPackages)
+      return 'instalar aplicaciones';
+    return 'aplicación';
   }
 
   // Diálogo explicativo para permisos
@@ -141,7 +150,8 @@ class AppPermissionHandler {
           title: const Text('Permisos necesarios'),
           content: const Text(
             'Para que More Security pueda proteger su dispositivo, necesitamos acceder a sus archivos y aplicaciones instaladas. '
-            'Todos los escaneos se realizan localmente en su dispositivo y respetan su privacidad.',
+            'Todos los escaneos se realizan localmente en su dispositivo y respetan su privacidad.\n\n'
+            'Por favor, conceda todos los permisos solicitados para una experiencia completa.',
           ),
           actions: <Widget>[
             TextButton(
@@ -162,66 +172,39 @@ class AppPermissionHandler {
     );
   }
 
-  // Diálogo personalizado para permisos específicos
-  static Future<bool?> _showCustomPermissionDialog(
+  // Diálogo para permisos denegados específicos
+  static Future<bool> _showPermissionDeniedDialog(
     BuildContext context,
-    String explanation,
+    Permission permission,
   ) async {
-    return await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          title: const Text('Permiso requerido'),
-          content: Text(explanation),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Cancelar'),
-              onPressed: () {
-                Navigator.of(dialogContext).pop(false);
-              },
-            ),
-            TextButton(
-              child: const Text('Conceder'),
-              onPressed: () {
-                Navigator.of(dialogContext).pop(true);
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
+    String permissionName = _getPermissionFriendlyName(permission);
 
-  // Diálogo para permisos denegados permanentemente
-  static Future<void> _showPermanentlyDeniedDialog(BuildContext context) async {
-    return showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          title: const Text('Permisos requeridos'),
-          content: const Text(
-            'Algunos permisos necesarios fueron denegados permanentemente. '
-            'Por favor, habilítelos manualmente en la configuración de su dispositivo para que la aplicación funcione correctamente.',
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Cancelar'),
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-              },
-            ),
-            TextButton(
-              child: const Text('Ir a Configuración'),
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-                openAppSettings();
-              },
-            ),
-          ],
-        );
-      },
-    );
+    return await showDialog<bool>(
+          context: context,
+          builder: (BuildContext dialogContext) {
+            return AlertDialog(
+              title: const Text('Permiso requerido'),
+              content: Text(
+                'El permiso de $permissionName es necesario para que la aplicación funcione correctamente.\n\n'
+                'Por favor, active este permiso en la configuración de su dispositivo.',
+              ),
+              actions: <Widget>[
+                TextButton(
+                  child: const Text('Más tarde'),
+                  onPressed: () {
+                    Navigator.of(dialogContext).pop(false);
+                  },
+                ),
+                TextButton(
+                  child: const Text('Ir a Configuración'),
+                  onPressed: () {
+                    Navigator.of(dialogContext).pop(true);
+                  },
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
   }
 }

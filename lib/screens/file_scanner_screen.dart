@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/scanned_file.dart';
 import '../services/file_scanner_service.dart';
+import '../utils/permission_handler.dart';
 
 class FileScannerScreen extends StatefulWidget {
   const FileScannerScreen({super.key});
@@ -15,13 +16,27 @@ class _FileScannerScreenState extends State<FileScannerScreen> {
   bool _isScanning = false;
   bool _hasScanned = false;
   List<ScannedFile> _scannedFiles = [];
-  
+
   Future<void> _startScan() async {
+    // Verificar permisos primero
+    final permissionsGranted =
+        await AppPermissionHandler.checkAndRequestBasicPermissions(context);
+    if (!permissionsGranted) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Se requieren permisos para escanear archivos'),
+          ),
+        );
+      }
+      return;
+    }
+
     setState(() {
       _isScanning = true;
       _scannedFiles = [];
     });
-    
+
     try {
       final results = await _scannerService.scanFiles();
       setState(() {
@@ -29,25 +44,25 @@ class _FileScannerScreenState extends State<FileScannerScreen> {
         _hasScanned = true;
       });
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al escanear archivos: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error al escanear archivos: $e')));
     } finally {
       setState(() {
         _isScanning = false;
       });
     }
   }
-  
+
   Future<void> _deleteFile(String filePath) async {
     try {
       final success = await _scannerService.deleteFile(filePath);
-      
+
       if (success) {
         setState(() {
           _scannedFiles.removeWhere((file) => file.filePath == filePath);
         });
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Archivo eliminado correctamente')),
         );
@@ -62,26 +77,30 @@ class _FileScannerScreenState extends State<FileScannerScreen> {
       );
     }
   }
-  
+
   Future<void> _quarantineFile(String filePath) async {
     try {
       final success = await _scannerService.quarantineFile(filePath);
-      
+
       if (success) {
         setState(() {
-          final index = _scannedFiles.indexWhere((file) => file.filePath == filePath);
+          final index = _scannedFiles.indexWhere(
+            (file) => file.filePath == filePath,
+          );
           if (index >= 0) {
             // Actualizar el estado del archivo para indicar que está en cuarentena
             // En una implementación real, probablemente tendríamos un campo "isQuarantined"
           }
         });
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Archivo puesto en cuarentena')),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No se pudo poner el archivo en cuarentena')),
+          const SnackBar(
+            content: Text('No se pudo poner el archivo en cuarentena'),
+          ),
         );
       }
     } catch (e) {
@@ -90,7 +109,7 @@ class _FileScannerScreenState extends State<FileScannerScreen> {
       );
     }
   }
-  
+
   String _formatFileSize(int sizeInBytes) {
     if (sizeInBytes < 1024) {
       return '$sizeInBytes B';
@@ -102,27 +121,69 @@ class _FileScannerScreenState extends State<FileScannerScreen> {
       return '${(sizeInBytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
     }
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Escáner de Archivos'),
+        title: Row(
+          children: [
+            Image.asset(
+              'assets/icons/file.png',
+              width: 24,
+              height: 24,
+              color: Colors.white,
+            ),
+            const SizedBox(width: 8),
+            const Text('Escáner de Archivos'),
+          ],
+        ),
       ),
-      body: _isScanning
-          ? _buildScanningView()
-          : !_hasScanned
+      body:
+          _isScanning
+              ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Image.asset(
+                      'assets/images/malware_detection.png',
+                      width: 120,
+                      height: 120,
+                    ),
+                    const SizedBox(height: 24),
+                    const CircularProgressIndicator(),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Escaneando archivos',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Buscando archivos maliciosos y peligrosos...',
+                      style: TextStyle(color: Colors.grey[600]),
+                    ),
+                  ],
+                ),
+              )
+              : !_hasScanned
               ? _buildInitialView()
               : _buildResultsView(),
     );
   }
-  
+
   Widget _buildInitialView() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.folder_outlined, size: 80, color: Colors.green),
+          Image.asset(
+            'assets/images/malware_detection.png',
+            width: 140,
+            height: 140,
+          ),
           const SizedBox(height: 24),
           const Text(
             'Escáner de Archivos',
@@ -138,48 +199,43 @@ class _FileScannerScreenState extends State<FileScannerScreen> {
             ),
           ),
           const SizedBox(height: 32),
-          ElevatedButton(
+          ElevatedButton.icon(
             onPressed: _startScan,
+            icon: Image.asset(
+              'assets/icons/scan.png',
+              width: 24,
+              height: 24,
+              color: Colors.white,
+            ),
+            label: const Text('Iniciar escaneo'),
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
             ),
-            child: const Text('Iniciar escaneo'),
           ),
         ],
       ),
     );
   }
-  
-  Widget _buildScanningView() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const CircularProgressIndicator(
-            strokeWidth: 6,
-          ),
-          const SizedBox(height: 32),
-          const Text(
-            'Escaneando archivos',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Buscando archivos maliciosos y peligrosos...',
-            style: TextStyle(color: Colors.grey[600]),
-          ),
-        ],
-      ),
-    );
-  }
-  
+
   Widget _buildResultsView() {
     // Agrupar por nivel de riesgo
-    final maliciousFiles = _scannedFiles.where((file) => file.riskLevel == FileRiskLevel.malicious).toList();
-    final suspiciousFiles = _scannedFiles.where((file) => file.riskLevel == FileRiskLevel.suspicious).toList();
-    final safeFiles = _scannedFiles.where((file) => file.riskLevel == FileRiskLevel.safe).toList();
-    final unknownFiles = _scannedFiles.where((file) => file.riskLevel == FileRiskLevel.unknown).toList();
-    
+    final maliciousFiles =
+        _scannedFiles
+            .where((file) => file.riskLevel == FileRiskLevel.malicious)
+            .toList();
+    final suspiciousFiles =
+        _scannedFiles
+            .where((file) => file.riskLevel == FileRiskLevel.suspicious)
+            .toList();
+    final safeFiles =
+        _scannedFiles
+            .where((file) => file.riskLevel == FileRiskLevel.safe)
+            .toList();
+    final unknownFiles =
+        _scannedFiles
+            .where((file) => file.riskLevel == FileRiskLevel.unknown)
+            .toList();
+
     return Column(
       children: [
         // Resumen
@@ -226,7 +282,7 @@ class _FileScannerScreenState extends State<FileScannerScreen> {
             ),
           ),
         ),
-        
+
         // Lista de archivos
         Expanded(
           child: DefaultTabController(
@@ -239,18 +295,10 @@ class _FileScannerScreenState extends State<FileScannerScreen> {
                     labelColor: Theme.of(context).primaryColor,
                     unselectedLabelColor: Colors.grey,
                     tabs: [
-                      Tab(
-                        text: "Malicioso (${maliciousFiles.length})",
-                      ),
-                      Tab(
-                        text: "Sospechoso (${suspiciousFiles.length})",
-                      ),
-                      Tab(
-                        text: "Seguro (${safeFiles.length})",
-                      ),
-                      Tab(
-                        text: "Desconocido (${unknownFiles.length})",
-                      ),
+                      Tab(text: "Malicioso (${maliciousFiles.length})"),
+                      Tab(text: "Sospechoso (${suspiciousFiles.length})"),
+                      Tab(text: "Seguro (${safeFiles.length})"),
+                      Tab(text: "Desconocido (${unknownFiles.length})"),
                     ],
                   ),
                 ),
@@ -259,13 +307,13 @@ class _FileScannerScreenState extends State<FileScannerScreen> {
                     children: [
                       // Tab de archivos maliciosos
                       _buildFilesList(maliciousFiles, true),
-                      
+
                       // Tab de archivos sospechosos
                       _buildFilesList(suspiciousFiles, true),
-                      
+
                       // Tab de archivos seguros
                       _buildFilesList(safeFiles, false),
-                      
+
                       // Tab de archivos desconocidos
                       _buildFilesList(unknownFiles, false),
                     ],
@@ -278,7 +326,7 @@ class _FileScannerScreenState extends State<FileScannerScreen> {
       ],
     );
   }
-  
+
   Widget _buildFilesList(List<ScannedFile> files, bool showActions) {
     if (files.isEmpty) {
       return const Center(
@@ -288,7 +336,7 @@ class _FileScannerScreenState extends State<FileScannerScreen> {
         ),
       );
     }
-    
+
     return ListView.builder(
       itemCount: files.length,
       padding: const EdgeInsets.all(16),
@@ -305,10 +353,17 @@ class _FileScannerScreenState extends State<FileScannerScreen> {
                 color: Color(file.riskColor).withOpacity(0.2),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(
-                _getIconForFileType(file.fileExtension),
+              child: Image.asset(
+                file.riskLevel == FileRiskLevel.malicious
+                    ? 'assets/icons/malware.png'
+                    : file.riskLevel == FileRiskLevel.suspicious
+                    ? 'assets/icons/warning.png'
+                    : file.riskLevel == FileRiskLevel.safe
+                    ? 'assets/icons/safe.png'
+                    : 'assets/icons/file.png',
                 color: Color(file.riskColor),
-                size: 30,
+                width: 30,
+                height: 30,
               ),
             ),
             title: Text(
@@ -321,7 +376,10 @@ class _FileScannerScreenState extends State<FileScannerScreen> {
                 Text(_formatFileSize(file.fileSize)),
                 const SizedBox(height: 4),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: Color(file.riskColor).withOpacity(0.2),
                     borderRadius: BorderRadius.circular(10),
@@ -380,75 +438,80 @@ class _FileScannerScreenState extends State<FileScannerScreen> {
               // Mostrar detalles del archivo
               showDialog(
                 context: context,
-                builder: (context) => AlertDialog(
-                  title: Text(file.fileName),
-                  content: SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        ListTile(
-                          title: const Text('Ubicación'),
-                          subtitle: Text(file.filePath),
-                          dense: true,
+                builder:
+                    (context) => AlertDialog(
+                      title: Text(file.fileName),
+                      content: SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            ListTile(
+                              title: const Text('Ubicación'),
+                              subtitle: Text(file.filePath),
+                              dense: true,
+                            ),
+                            ListTile(
+                              title: const Text('Tamaño'),
+                              subtitle: Text(_formatFileSize(file.fileSize)),
+                              dense: true,
+                            ),
+                            ListTile(
+                              title: const Text('Última modificación'),
+                              subtitle: Text(_formatDate(file.lastModified)),
+                              dense: true,
+                            ),
+                            ListTile(
+                              title: const Text('Nivel de riesgo'),
+                              subtitle: Text(_getRiskLevelText(file.riskLevel)),
+                              dense: true,
+                            ),
+                            const Divider(),
+                            const Text(
+                              'Detalles del análisis:',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 8),
+                            ...file.reasons.map(
+                              (reason) => Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 2,
+                                ),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text('• '),
+                                    Expanded(child: Text(reason)),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                        ListTile(
-                          title: const Text('Tamaño'),
-                          subtitle: Text(_formatFileSize(file.fileSize)),
-                          dense: true,
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Cerrar'),
                         ),
-                        ListTile(
-                          title: const Text('Última modificación'),
-                          subtitle: Text(_formatDate(file.lastModified)),
-                          dense: true,
-                        ),
-                        ListTile(
-                          title: const Text('Nivel de riesgo'),
-                          subtitle: Text(_getRiskLevelText(file.riskLevel)),
-                          dense: true,
-                        ),
-                        const Divider(),
-                        const Text(
-                          'Detalles del análisis:',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 8),
-                        ...file.reasons.map((reason) => Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 2),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('• '),
-                              Expanded(child: Text(reason)),
-                            ],
+                        if (showActions) ...[
+                          TextButton(
+                            onPressed: () {
+                              Navigator.pop(context);
+                              _deleteFile(file.filePath);
+                            },
+                            child: const Text('Eliminar'),
                           ),
-                        )),
+                          TextButton(
+                            onPressed: () {
+                              Navigator.pop(context);
+                              _quarantineFile(file.filePath);
+                            },
+                            child: const Text('Cuarentena'),
+                          ),
+                        ],
                       ],
                     ),
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Cerrar'),
-                    ),
-                    if (showActions) ...[
-                      TextButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          _deleteFile(file.filePath);
-                        },
-                        child: const Text('Eliminar'),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          _quarantineFile(file.filePath);
-                        },
-                        child: const Text('Cuarentena'),
-                      ),
-                    ],
-                  ],
-                ),
               );
             },
           ),
@@ -456,7 +519,7 @@ class _FileScannerScreenState extends State<FileScannerScreen> {
       },
     );
   }
-  
+
   IconData _getIconForFileType(String extension) {
     switch (extension.toLowerCase()) {
       case 'pdf':
@@ -487,7 +550,7 @@ class _FileScannerScreenState extends State<FileScannerScreen> {
         return Icons.insert_drive_file;
     }
   }
-  
+
   String _getRiskLevelText(FileRiskLevel riskLevel) {
     switch (riskLevel) {
       case FileRiskLevel.safe:
@@ -500,11 +563,11 @@ class _FileScannerScreenState extends State<FileScannerScreen> {
         return 'Desconocido';
     }
   }
-  
+
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
   }
-  
+
   Widget _buildStatColumn(String label, String value, Color color) {
     return Column(
       children: [
@@ -517,13 +580,7 @@ class _FileScannerScreenState extends State<FileScannerScreen> {
           ),
         ),
         const SizedBox(height: 4),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey[600],
-          ),
-        ),
+        Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
       ],
     );
   }
